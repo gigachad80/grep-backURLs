@@ -3,6 +3,10 @@
 🚀 Project Name : grep-backURLs
 ===============
 
+![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-purple.svg)
+<a href="https://goreportcard.com/report/github.com/gigachad80/grep-backURLs"><img src="https://goreportcard.com/badge/github.com/gigachad80/grep-backURLs"></a>
+<a href="https://github.com/gigachad80/grep-backURLs/issues"><img src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat"></a>
+
 #### grep-backURLs : Automated way to find juicy information from website 
 
 ### 📌 Overview
