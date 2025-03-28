@@ -41,6 +41,17 @@
  2. Go to grep-backURls directory and give permission to main.go
  3. Run command ./main.go
 
+
+### Roadmap / To-do 
+
+- [ ] Release Cross Platform Executables 
+- [ ] Add More Keywords 
+- [ ] Output in JSON & Markdown format
+- [ ] HTML Report 
+- [ ] Attach Demo Screenshot 
+- [ ] Update Readme
+
+
 ### 💓 Credits:
 
 
