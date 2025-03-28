@@ -42,7 +42,7 @@
  3. Run command ./main.go
 
 
-### Roadmap / To-do 
+### 📝 Roadmap / To-do 
 
 - [ ] Release Cross Platform Executables 
 - [ ] Add More Keywords 
