@@ -1,0 +1,10 @@
+{
+  "domain": "",
+  "output_dir": "output",
+  "max_concurrency": 10,
+  "timeout_seconds": 30000,
+  "enable_logging": true,
+  "enable_filtering": true,
+  "custom_keywords": [],
+  "timestamp": "2025-05-24T18:53:23.056393+05:30"
+}
