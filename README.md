@@ -90,12 +90,12 @@ Options:
 
 ### 📝 Roadmap / To-do 
 
-- [ ] Release Cross Platform Executables 
+- [x] Release Cross Platform Executables 
 - [ ] Add More Keywords 
 - [x] Output in JSON & Markdown format
 - [x] HTML Report 
 - [ ] Attach Demo Screenshot 
-- [ ] Update Readme
+- [x] Update Readme
 
 
 ### 💓 Credits:
