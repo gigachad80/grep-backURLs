@@ -90,89 +90,181 @@ var (
 	mu      sync.Mutex
 )
 
+// init function initializes global maps before main runs.
+func init() {
+	results.MatchCount = make(map[string]int)
+	results.Statistics = make(map[string]int)
+	results.Errors = make([]string, 0)
+}
 
+// setupLogging configures the logging output to a file within the output directory.
+func setupLogging(domain string) error {
+	if !config.EnableLogging {
+		return nil
+	}
+
+	logDir := filepath.Join(config.OutputDir, "logs")
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return fmt.Errorf("failed to create log directory %s: %v", logDir, err)
+	}
+
+	// Log file name includes a timestamp for uniqueness
+	logPath := filepath.Join(logDir, fmt.Sprintf("%s_%s.log", domain, time.Now().Format("20060102_150405")))
+	var err error
+	logFile, err = os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		return fmt.Errorf("failed to open log file %s: %v", logPath, err)
+	}
+
+	log.SetOutput(logFile) // Directs standard log output to the file
+	return nil
+}
+
+// logMessage prints messages to console and optionally to a log file.
+func logMessage(level, message string) {
+	// Timestamp for individual log entries
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	logEntry := fmt.Sprintf("[%s] %s: %s", timestamp, level, message)
+
+	// Print to console with colors
+	switch level {
+	case "ERROR":
+		fmt.Printf("%s[ERROR]%s %s\n", colorRed, colorReset, message)
+	case "WARN":
+		fmt.Printf("%s[WARN]%s %s\n", colorYellow, colorReset, message)
+	case "INFO":
+		fmt.Printf("%s[INFO]%s %s\n", colorGreen, colorReset, message)
+	case "DEBUG":
+		fmt.Printf("%s[DEBUG]%s %s\n", colorBlue, colorReset, message)
+	default:
+		fmt.Printf("%s\n", message)
+	}
+
+	// Write to log file if enabled and file is open
+	if config.EnableLogging && logFile != nil {
+		if _, err := logFile.WriteString(logEntry + "\n"); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to write to log file: %v\n", err)
+		}
+	}
+}
+
+// loadConfig loads configuration from config.json or creates a default one.
+
+func loadConfig() error {
+	configFile := "config.json"
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+		logMessage("INFO", "config.json not found. Creating default configuration.")
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current working directory: %v", err)
+		}
+		config = Config{
+			OutputDir:       cwd,
+			MaxConcurrency:  10,
+			Timeout:         300,
+			EnableLogging:   true,
+			EnableFiltering: true, // Default to true, but now ignored for filtering logic
+			CustomKeywords:  []string{},
+			Timestamp:       time.Now(), // Initial timestamp for new config
+		}
+		return saveConfig() // Save the newly created default config
+	}
+
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		return fmt.Errorf("failed to read config file %s: %v", configFile, err)
+	}
+
+	if err := json.Unmarshal(data, &config); err != nil {
+		return fmt.Errorf("failed to unmarshal config data from %s: %v", configFile, err)
+	}
+	logMessage("INFO", fmt.Sprintf("Configuration loaded from %s.", configFile))
+
+	// Update the timestamp to the current time whenever config is loaded
+	config.Timestamp = time.Now()
+	// Save the config immediately to persist the updated timestamp
+	if err := saveConfig(); err != nil {
+		return fmt.Errorf("failed to save config after timestamp update: %v", err)
+	}
+
+	return nil
+}
+
+// saveConfig marshals the current config to JSON and writes it to config.json.
+func saveConfig() error {
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal config to JSON: %v", err)
+	}
+	if err := os.WriteFile("config.json", data, 0644); err != nil {
+		return fmt.Errorf("failed to write config file: %v", err)
+	}
+	logMessage("INFO", "Configuration saved to config.json.")
+	return nil
+}
+
+// parsePattern parses a keyword string into a Pattern struct with a compiled regex.
 func parsePattern(keyword string) (*Pattern, error) {
-	// Add debug logging
-	fmt.Printf("Debug: Processing pattern: %s\n", keyword)
-
-	// Remove leading "grep " or "egrep " if present
 	pattern := strings.TrimPrefix(keyword, "grep ")
 	pattern = strings.TrimPrefix(pattern, "egrep ")
-	pattern = strings.Trim(pattern, "\"'") // Remove quotes
+	pattern = strings.Trim(keyword, "\"'")
 
-	// Convert grep pattern to Go regex
 	var regexPattern string
 
+	originalKeywordLower := strings.ToLower(keyword)
+	isWholeWord := strings.Contains(originalKeywordLower, " -w ") || strings.HasPrefix(originalKeywordLower, "grep -w ")
+	isCaseInsensitive := strings.Contains(originalKeywordLower, " -i ") || strings.HasPrefix(originalKeywordLower, "grep -i ")
+
 	if strings.HasPrefix(pattern, "-") {
-		// Handle grep flags
 		parts := strings.Fields(pattern)
 		if len(parts) > 1 {
-			// Remove flags and keep the pattern
-			pattern = parts[len(parts)-1]
-			fmt.Printf("Debug: After removing flags: %s\n", pattern)
+			cleanedParts := []string{}
+			foundPatternStart := false
+			for _, p := range parts {
+				if !strings.HasPrefix(p, "-") || foundPatternStart {
+					cleanedParts = append(cleanedParts, p)
+					foundPatternStart = true
+				}
+			}
+			pattern = strings.Join(cleanedParts, " ")
 		}
 	}
 
-	// Handle different pattern types
 	switch {
 	case strings.HasPrefix(pattern, ".*"):
 		regexPattern = pattern
-		fmt.Printf("Debug: Wildcard pattern detected: %s\n", regexPattern)
-
 	case strings.HasPrefix(pattern, "\\."):
-		regexPattern = strings.Replace(pattern, "\\.", "\\.", -1)
-		fmt.Printf("Debug: File extension pattern detected: %s\n", regexPattern)
-
+		regexPattern = pattern
 	case strings.HasPrefix(pattern, "/"):
-		// Handle path patterns
 		regexPattern = regexp.QuoteMeta(pattern)
-		fmt.Printf("Debug: Path pattern detected: %s\n", regexPattern)
-
 	case strings.Contains(pattern, "(?<=") || strings.Contains(pattern, "(?="):
-		// Handle lookaround assertions
 		regexPattern = pattern
-		fmt.Printf("Debug: Lookaround pattern detected: %s\n", regexPattern)
-
 	case strings.Contains(pattern, "(http|https)"):
-		// Handle URL patterns
 		regexPattern = pattern
-		fmt.Printf("Debug: URL pattern detected: %s\n", regexPattern)
-
 	case strings.Contains(pattern, "[?&]"):
-		// Handle URL parameter patterns
 		regexPattern = pattern
-		fmt.Printf("Debug: URL parameter pattern detected: %s\n", regexPattern)
-
 	default:
-		// Handle simple patterns and escape special characters
-		if !strings.Contains(pattern, "([") && !strings.Contains(pattern, "{") {
-			regexPattern = regexp.QuoteMeta(pattern)
-		} else {
+		isComplexRegex := strings.ContainsAny(pattern, ".*+?|()[]{}^$\\")
+		if isComplexRegex {
 			regexPattern = pattern
+		} else {
+			regexPattern = regexp.QuoteMeta(pattern)
 		}
-		fmt.Printf("Debug: Default pattern handling: %s\n", regexPattern)
 	}
 
-	// Add word boundaries for whole word matching if needed
-	if strings.HasPrefix(keyword, "grep -w ") {
+	if isWholeWord {
 		regexPattern = "\\b" + regexPattern + "\\b"
-		fmt.Printf("Debug: Added word boundaries: %s\n", regexPattern)
 	}
 
-	// Add case insensitive flag if -i was present
 	var flags string
-	if strings.Contains(keyword, " -i ") || strings.HasPrefix(keyword, "grep -i ") {
+	if isCaseInsensitive {
 		flags = "(?i)"
-		fmt.Printf("Debug: Added case-insensitive flag\n")
 	}
 
-	// Compile the regex
 	regex, err := regexp.Compile(flags + regexPattern)
 	if err != nil {
-		return nil, fmt.Errorf("invalid pattern %s: %v", pattern, err)
+		return nil, fmt.Errorf("invalid pattern '%s' (derived regex: '%s'): %v", keyword, flags+regexPattern, err)
 	}
-
-	fmt.Printf("Debug: Final regex pattern: %s\n", flags+regexPattern)
 
 	return &Pattern{
 		original: keyword,
@@ -180,15 +272,18 @@ func parsePattern(keyword string) (*Pattern, error) {
 	}, nil
 }
 
+// isEmptyFile checks if a file exists and is empty.
 func isEmptyFile(filename string) bool {
 	fileInfo, err := os.Stat(filename)
 	if err != nil {
-		fmt.Printf("Error checking file %s: %v\n", filename, err)
-		return true
+		if os.IsNotExist(err) {
+			return true // File does not exist, so it's "empty" for our purpose
+		}
+		logMessage("ERROR", fmt.Sprintf("Error checking file %s: %v", filename, err))
+		return true // Treat error as empty to prevent further processing
 	}
 	return fileInfo.Size() == 0
 }
-
 func runCommand(cmd *exec.Cmd, description string) error {
 	fmt.Printf("Running %s...\n", description)
 	if err := cmd.Run(); err != nil {
