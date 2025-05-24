@@ -117,6 +117,6 @@ Options:
 
 Licensed under **MIT**
 
-🕒 Last Updated: May 25 , 2025 
+🕒 Last Updated: May 24 , 2025 
 
 🕒 First Published : January ,  2025
