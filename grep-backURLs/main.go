@@ -2,23 +2,94 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
+	"flag"
 	"fmt"
+	"html/template"
+	"log"
+	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 )
 
+// Define the tool's version for the --version flag
+const version = "2.0.0"
+
+// ANSI escape codes for colored console output
 const (
-	colorCyan  = "\033[36m"
-	colorReset = "\033[0m"
+	colorRed    = "\033[31m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
+	colorBlue   = "\033[34m"
+	colorPurple = "\033[35m"
+	colorCyan   = "\033[36m"
+	colorWhite  = "\033[37m"
+	colorReset  = "\033[0m"
+	colorBold   = "\033[1m"
 )
 
+// Pattern holds the original keyword string and its compiled regular expression.
 type Pattern struct {
 	original string
 	regex    *regexp.Regexp
 }
+
+// Config struct holds all configurable parameters for the tool.
+type Config struct {
+	Domain          string    `json:"domain"`
+	OutputDir       string    `json:"output_dir"`
+	MaxConcurrency  int       `json:"max_concurrency"`
+	Timeout         int       `json:"timeout_seconds"`
+	EnableLogging   bool      `json:"enable_logging"`
+	EnableFiltering bool      `json:"enable_filtering"`
+	CustomKeywords  []string  `json:"custom_keywords"`
+	Timestamp       time.Time `json:"timestamp"`
+}
+
+// Results struct holds all collected data and statistics from a scan.
+type Results struct {
+	Domain         string         `json:"domain"`
+	Timestamp      time.Time      `json:"timestamp"`
+	SubdomainCount int            `json:"subdomain_count"`
+	URLCount       int            `json:"url_count"`
+	MatchCount     map[string]int `json:"match_count"`
+	Statistics     map[string]int `json:"statistics"`
+	Errors         []string       `json:"errors"`
+}
+
+// PatternResult struct holds the results for a specific pattern.
+type PatternResult struct {
+	OriginalPattern  string   `json:"pattern"`
+	RegexPattern     string   `json:"regex_compiled"`
+	MatchedLines     []string `json:"matched_lines"`
+	ResultFilePath   string   `json:"raw_output_file"`
+	JSONFilePath     string   `json:"json_output_file,omitempty"`
+	MarkdownFilePath string   `json:"markdown_output_file,omitempty"`
+}
+
+// URLAnalysis struct holds detailed information extracted from a single URL.
+type URLAnalysis struct {
+	URL        string   `json:"url"`
+	Domain     string   `json:"domain"`
+	Path       string   `json:"path"`
+	Parameters []string `json:"parameters"`
+	Extensions []string `json:"json_extensions"`
+	Sensitive  bool     `json:"sensitive"`
+}
+
+// Global variables for configuration, results, logging, and concurrency control.
+var (
+	config  Config
+	results Results
+	logFile *os.File
+	mu      sync.Mutex
+)
+
 
 func parsePattern(keyword string) (*Pattern, error) {
 	// Add debug logging
