@@ -17,11 +17,11 @@
 ### 🤔 Why This Name?
 
  Just beacuse it uses grep command to sort out from waybackURLs link.
-<!-- GitAds-Verify: GJNT9PNXMS4V23JO4B9EOYG2AX9L6EH4 -->
 
-### ⌚ Total Time taken to build & test
 
- Approx 3-3:30 hr.
+### ⌚ Total Time taken to develop , test & building bin.
+
+ Approx 3 hr 48 min 58 sec 
 
 ### 🙃Why I Created This
 
@@ -33,13 +33,59 @@
 * #### [waybackurls](https://github.com/tomnomnom/waybackurls)
 * #### [subfinder](https://github.com/projectdiscovery/subfinder)
 
-### 📥 Installation Guide
+### 📥 Installation Guide & USage : 
 
 #### ⚡ Quick Install:
 
  1. Git clone this URL.
  2. Go to grep-backURls directory and give permission to main.go
  3. Run command ./main.go
+
+ OR 
+
+ - You can directly download the binary from releases section [here](https://github.com/gigachad80/grep-backURLs/releases)
+
+
+### 🍃 Usage :
+
+
+```
+A tool to find sensitive information by enumerating subdomains, collecting Wayback Machine URLs,
+analyzing them, and matching against custom patterns.
+
+Options:
+  -config
+        Run interactive configuration setup and exit
+  -domain string
+        Specify the target domain (e.g., example.com)
+  -html
+        Generate a comprehensive HTML report summarizing all findings in the current directory
+  -json
+        Generate results in JSON format for each pattern
+  -keywords-file string
+        Path to a file containing grep-like keywords (one per line) (default "grep_keywords.txt")
+  -markdown
+        Generate results in Markdown format for each pattern
+  -output-dir string
+        Base directory to store all scan output files (default "output")
+  -v    Display the tool version and exit (shorthand)
+  -version
+        Display the tool version and exit
+
+```
+
+### Note : 
+
+> You don't need to specify -json or -markdown flag , it will automatically generate both , no matter you have specified these flags for not . However , for HTML report , you need to specify -html flag . 
+
+> For Customisation : edit config.json in your editor ( pluma / notepad / nano / vim 😉)
+
+### 💫 What's new  in grep-backURLs v2  : 
+
+- Customisation and control over concurrency , output directory name , timeout for subdomain enum , customm keywords , logging . 
+
+- HTML report , JSON , Markdown support
+
 
 
 ### 📝 Roadmap / To-do 
@@ -71,5 +117,6 @@
 
 Licensed under **MIT**
 
-🕒 Last Updated: April 3, 2025 
+🕒 Last Updated: May 25 , 2025 
 
+🕒 First Published : January ,  2025
