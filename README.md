@@ -46,8 +46,8 @@
 
 - [ ] Release Cross Platform Executables 
 - [ ] Add More Keywords 
-- [ ] Output in JSON & Markdown format
-- [ ] HTML Report 
+- [x] Output in JSON & Markdown format
+- [x] HTML Report 
 - [ ] Attach Demo Screenshot 
 - [ ] Update Readme
 
